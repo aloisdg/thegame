@@ -1,0 +1,227 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Game</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        main {
+            height: 100%;
+            display: grid;
+            grid-template-rows: auto auto 1fr auto;
+            max-width: 600px;
+        }
+
+        #score {}
+
+        #board {
+            display: grid;
+            grid-template-columns: auto 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            margin-bottom: 1rem;
+        }
+
+        #board>p {
+            font-size: 4rem;
+            padding: 4rem;
+            place-self: center;
+        }
+
+        #hand {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+        }
+
+        #hand>button {}
+
+        button {
+            padding: 1rem;
+            font-size: 2rem;
+        }
+
+        #deckElement {
+            display: grid;
+            grid-template-columns: repeat(25, 1fr);
+            grid-template-rows: 1fr 1fr 1fr 1fr 1fr;
+        }
+
+        #deckElement>div {
+            text-align: center;
+            padding: 0 0.2rem;
+
+        }
+
+        .played {
+            background-color: crimson;
+            color: whitesmoke;
+        }
+
+        .handed {
+            background-color: royalblue;
+            color: whitesmoke;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <section id="score">
+            current score: <span id="currentScore">0</span>
+        </section>
+        <section id="deckElement">
+        </section>
+        <section id="board">
+            <p class="center">˅</p>
+            <button>100</button>
+            <button>100</button>
+            <p class="center">˄</p>
+            <button>1</button>
+            <button>1</button>
+        </section>
+        <section id="hand">
+
+        </section>
+    </main>
+
+
+    <script>
+        function getRandomIntInclusive(min, max) {
+            min = Math.ceil(min);
+            max = Math.floor(max);
+            return Math.floor(Math.random() * (max - min + 1)) + min; //The maximum is inclusive and the minimum is inclusive 
+        }
+
+        // -- To shuffle an array a of n elements (indices 0..n-1):
+        // for i from n−1 downto 1 do
+        //      j ← random integer such that 0 ≤ j ≤ i
+        //      exchange a[j] and a[i]
+        // https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
+        function shuffle(array) {
+            const a = array.slice(0);
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = getRandomIntInclusive(0, i);
+                const tmp = a[i];
+                a[i] = a[j];
+                a[j] = tmp;
+            }
+            return a;
+        }
+
+        function rangeFill(count, fill) {
+            return new Array(count).fill(fill);
+        }
+
+        function range(start, count) {
+            return rangeFill(count, 0).map((_, i) => i + start);
+        }
+
+        function removeFromArray(array, value) {
+            return array.filter(value);
+        }
+
+        function draw(deck, hand, count = 1) {
+            if (count < 1 || deck.length === 0) return;
+            if (count > deck.length) count = deck.length;
+            range(0, count).forEach(_ => hand.push(deck.pop()));
+        }
+
+        function canPlayOnDescending(current, card) {
+            return card < current || card - 10 === current;
+        }
+
+        function canPlayOnAscending(current, card) {
+            return card > current || card + 10 === current;
+        }
+
+        const appendCard = newCard => {
+            const button = document.createElement("button");
+            document.querySelector("#deckElement").children[newCard - 1].classList.add('handed');
+            button.textContent = newCard;
+            button.onclick = event => {
+                cardBeingPlayed = parseInt(event.target.textContent);
+            };
+            handElement.appendChild(button);
+        };
+
+        const removeCard = card => {
+            const childNode = [...handElement.children].filter(c => parseInt(c.textContent) === card)[0];
+            handElement.removeChild(childNode);
+        }
+
+        const dropCard = (event, i) => {
+            if (cardBeingPlayed === 0)
+                return;
+            const content = parseInt(event.target.textContent);
+            if (i >= 2 && !canPlayOnAscending(content, cardBeingPlayed))
+                return;
+            if (i < 2 && !canPlayOnDescending(content, cardBeingPlayed))
+                return;
+
+            event.target.textContent = cardBeingPlayed;
+            removeCard(cardBeingPlayed);
+
+            document.querySelector("#deckElement").children[cardBeingPlayed - 1].classList.remove("handed");
+            document.querySelector("#deckElement").children[cardBeingPlayed - 1].classList.add("played");
+
+            cardBeingPlayed = 0;
+            currentScore.textContent = parseInt(currentScore.textContent) + 1;
+
+            if (handElement.childElementCount === 0 && deck.length === 0) {
+                alert("gg");
+                window.location.href = window.location.href;
+                return;
+            }
+
+            if (deck.length === 0) return;
+
+            const newCard = deck.pop();
+            appendCard(newCard);
+        };
+
+        for (let i = 0; i < 100; i++) {
+            const div = document.createElement('div');
+            div.textContent = i + 1;
+            if (i == 0 || i == 99) {
+                div.classList.add('played');
+            }
+            document.querySelector("#deckElement").appendChild(div);
+        }
+
+        let cardBeingPlayed = 0;
+        const deck = shuffle(range(2, 99 - 1))
+
+        // draw(deck, hand, 7);
+
+        const handElement = document.querySelector('#hand');
+
+        // hand.sort((a, b) => a < b);
+        for (let i = 0; i < 8; i++) {
+            const newCard = deck.pop();
+            appendCard(newCard);
+        }
+
+        [...document.querySelectorAll('#board > button')].forEach((b, i) => {
+            b.onclick = event => dropCard(event, i);
+        })
+
+
+    </script>
+
+</body>
+
+<!-- 7c -> 11 -->
+<!-- 8c ->  2 -> 65 48 -->
+<!-- 8c ->  1 -> 67 -->
+
+</html>
