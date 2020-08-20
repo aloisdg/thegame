@@ -19,13 +19,22 @@
         main {
             height: 100%;
             display: grid;
-            grid-template-rows: auto auto 1fr auto;
+            grid-template-rows: auto auto auto 1fr auto;
             max-width: 600px;
+        }
+
+        header {
+            font-size: 2rem;
         }
 
         #score {
             display: flex;
             justify-content: space-between;
+            align-items: center;
+        }
+
+        #score>p {
+            font-size: 1.5rem;
         }
 
         #board {
@@ -36,31 +45,37 @@
         }
 
         #board>p {
-            font-size: 4rem;
-            padding: 4rem;
+            font-size: 3rem;
+            padding: 0.5rem;
             place-self: center;
         }
 
         #hand {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr 1fr;
+            background-color: royalblue;
         }
 
         button {
-            padding: 1rem;
-            font-size: 2rem;
+            padding: 0.8rem;
+            font-size: 1.5rem;
         }
 
         #deckElement {
             display: grid;
-            grid-template-columns: repeat(25, 1fr);
-            grid-template-rows: 1fr 1fr 1fr 1fr 1fr;
+            grid-template-columns: repeat(10, 1fr);
+            margin: 1rem 0;
         }
 
         #deckElement>div {
             text-align: center;
             padding: 0 0.2rem;
 
+        }
+
+        .voided {
+            background-color: black;
+            color: whitesmoke;
         }
 
         .played {
@@ -72,14 +87,28 @@
             background-color: royalblue;
             color: whitesmoke;
         }
+
+        .cardBeingPlayed,
+        .buttonBeingPlayed {
+            background-color: forestgreen;
+            color: whitesmoke;
+        }
+
+        .dropped {
+            background-color: orangered;
+            color: whitesmoke;
+        }
     </style>
 </head>
 
 <body>
     <main>
+        <header>
+            GAME
+        </header>
         <section id="score">
             <p>
-                current score: <span id="currentScore">0</span>
+                score: <span id="currentScore">0</span>
             </p>
             <button type="button" id="resetButton">new</button>
         </section>
@@ -98,23 +127,16 @@
         </section>
     </main>
 
-
     <script>
-        function getRandomIntInclusive(min, max) {
-            min = Math.ceil(min);
-            max = Math.floor(max);
-            return Math.floor(Math.random() * (max - min + 1)) + min; //The maximum is inclusive and the minimum is inclusive 
+        function getRandomIntInclusive(max) {
+            return Math.floor(Math.random() * (Math.floor(max) + 1));
         }
 
-        // -- To shuffle an array a of n elements (indices 0..n-1):
-        // for i from n−1 downto 1 do
-        //      j ← random integer such that 0 ≤ j ≤ i
-        //      exchange a[j] and a[i]
         // https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
         function shuffle(array) {
             const a = array.slice(0);
             for (let i = a.length - 1; i > 0; i--) {
-                const j = getRandomIntInclusive(0, i);
+                const j = getRandomIntInclusive(i);
                 const tmp = a[i];
                 a[i] = a[j];
                 a[j] = tmp;
@@ -122,22 +144,8 @@
             return a;
         }
 
-        function rangeFill(count, fill) {
-            return new Array(count).fill(fill);
-        }
-
         function range(start, count) {
-            return rangeFill(count, 0).map((_, i) => i + start);
-        }
-
-        function removeFromArray(array, value) {
-            return array.filter(value);
-        }
-
-        function draw(deck, hand, count = 1) {
-            if (count < 1 || deck.length === 0) return;
-            if (count > deck.length) count = deck.length;
-            range(0, count).forEach(_ => hand.push(deck.pop()));
+            return new Array(count).fill(0).map((_, i) => i + start);
         }
 
         function canPlayOnDescending(current, card) {
@@ -150,10 +158,26 @@
 
         const appendCard = newCard => {
             const button = document.createElement("button");
-            document.querySelector("#deckElement").children[newCard - 1].classList.add('handed');
+            deckElement.children[newCard - 1].classList.add('handed');
             button.textContent = newCard;
             button.onclick = event => {
+                const buttonBeingPlayedElement = document.querySelector(".buttonBeingPlayed");
+                const cardBeingPlayedElement = document.querySelector(".cardBeingPlayed");
+
+                if (buttonBeingPlayedElement)
+                    buttonBeingPlayedElement.classList.remove("buttonBeingPlayed");
+
+                if (cardBeingPlayedElement)
+                    cardBeingPlayedElement.classList.remove("cardBeingPlayed");
+
+                if (cardBeingPlayed === parseInt(event.target.textContent)) {
+                    cardBeingPlayed = 0;
+                    return;
+                }
+
+                event.target.classList.add("buttonBeingPlayed")
                 cardBeingPlayed = parseInt(event.target.textContent);
+                document.querySelector("#deckElement").children[cardBeingPlayed - 1].classList.add('cardBeingPlayed');
             };
             hand.appendChild(button);
         };
@@ -175,15 +199,20 @@
             event.target.textContent = cardBeingPlayed;
             removeCard(cardBeingPlayed);
 
-            document.querySelector("#deckElement").children[cardBeingPlayed - 1].classList.remove("handed");
-            document.querySelector("#deckElement").children[cardBeingPlayed - 1].classList.add("played");
+            deckElement.children[cardBeingPlayed - 1].classList.remove("handed", "cardBeingPlayed");
+            deckElement.children[cardBeingPlayed - 1].classList.add("dropped");
+
+            if (content < 100 && content > 1) {
+                deckElement.children[content - 1].classList.remove("dropped");
+                deckElement.children[content - 1].classList.add("played");
+            }
 
             cardBeingPlayed = 0;
             currentScore.textContent = parseInt(currentScore.textContent) + 1;
 
             if (hand.childElementCount === 0 && deck.length === 0) {
                 alert("gg");
-                window.location.href = window.location.href;
+                reset();
                 return;
             }
 
@@ -192,6 +221,10 @@
             const newCard = deck.pop();
             appendCard(newCard);
         };
+
+        function isNumber(value) {
+            return parseInt(value).toString() === value;
+        }
 
         function loadQueryString() {
             const data = {
@@ -206,7 +239,7 @@
 
             const validParameters =
                 parameters
-                    .filter(([key, value]) => !!key && !!value && parseInt(value).toString() === value)
+                    .filter(([key, value]) => !!key && !!value && isNumber(value))
             if (validParameters.length == 0)
                 return data
 
@@ -231,18 +264,13 @@
                 const div = document.createElement('div');
                 div.textContent = i + 1;
                 if (i == 0 || i == 99) {
-                    div.classList.add('played');
+                    div.classList.add('voided');
                 }
                 document.querySelector("#deckElement").appendChild(div);
             }
 
             deck = shuffle(range(2, 99 - 1))
 
-            // draw(deck, hand, 7);
-
-            // const handElement = document.querySelector('#hand');
-
-            // hand.sort((a, b) => a < b);
             for (let i = 0; i < options.hand; i++) {
                 const newCard = deck.pop();
                 appendCard(newCard);
@@ -261,6 +289,9 @@
             board.children[2].textContent = 100;
             board.children[4].textContent = 1;
             board.children[5].textContent = 1;
+            if (document.querySelector(".cardBeingPlayed"))
+                document.querySelector(".cardBeingPlayed").classList.remove("cardBeingPlayed");
+            cardBeingPlayed = 0;
             init();
         }
 
@@ -269,10 +300,6 @@
         resetButton.onclick = reset;
 
     </script>
-
 </body>
-
-<!-- 7c -> 11 -->
-<!-- 8c ->  1 -> 67 -->
 
 </html>
